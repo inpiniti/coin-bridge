@@ -472,26 +472,7 @@ export default function App() {
   };
 
 
-  const saveKbEdit = () => {
-    if (!tempName || !tempAccount) {
-      return addToast("예금주명과 계좌번호를 모두 입력해 주세요.", "send");
-    }
-    setRegName(tempName);
-    setRegAccount(tempAccount);
-    setHasRegisteredAccount(true);
-    localStorage.setItem("kb_account_name", tempName);
-    localStorage.setItem("kb_account_num", tempAccount);
-    localStorage.setItem("kb_has_account", "true");
-    setKbEditOpen(false);
-    addToast("케이뱅크 등록 계좌 정보가 수정되었습니다.", "ok");
-  };
 
-  // --- withdraw ---
-  const resolveAccount = () => {
-    if (withdrawMode === "registered" && hasRegisteredAccount)
-      return { bank: "케이뱅크", name: regName, account: regAccount };
-    return { bank: manualBank || "케이뱅크", name: manualName || "(미입력)", account: manualNum || "(미입력)" };
-  };
 
   const openWithdraw = () => {
     const amt = pnum(withdrawAmount);
@@ -539,7 +520,6 @@ export default function App() {
 
   // --- derived calculations ---
   const bybitTotal = bybit.reduce((a, c) => a + c.amount * (META[c.sym]?.usd || c.usd || 1), 0);
-  const acc = resolveAccount();
   const card = { flex: "1 1 0", minWidth: 0, background: "#fff", border: "1px solid #EDEFF2", borderRadius: 20, boxShadow: "0 2px 14px rgba(0,0,0,.04)", padding: "20px 18px", display: "flex", flexDirection: "column" };
 
   const xc = xferSym ? bybit.find((x) => x.sym === xferSym) : null;
