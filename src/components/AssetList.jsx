@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Coins, RefreshCw, AlertTriangle, ArrowRightLeft } from "lucide-react";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 
 export default function AssetList({ keys, refreshTrigger, onSelectCoinForSell, onSelectCoinForTransfer }) {
   const [bybitAssets, setBybitAssets] = useState([]);
@@ -10,6 +10,16 @@ export default function AssetList({ keys, refreshTrigger, onSelectCoinForSell, o
   
   const [bybitError, setBybitError] = useState("");
   const [upbitError, setUpbitError] = useState("");
+
+  // 한글 코인명 맵핑
+  const coinNames = {
+    USDT: "USDT 테더",
+    BTC: "BTC 비트코인",
+    ETH: "ETH 이더리움",
+    XRP: "XRP 리플",
+    TRX: "TRX 트론",
+    EOS: "EOS 이오스"
+  };
 
   const fetchBybitAssets = async () => {
     if (!keys?.bybitKey || !keys?.bybitSecret) return;
@@ -24,7 +34,7 @@ export default function AssetList({ keys, refreshTrigger, onSelectCoinForSell, o
       });
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.detail || "바이비트 자산 정보를 가져오지 못했습니다.");
+        throw new Error(errData.detail || "바이비트 자산 조회 실패");
       }
       const data = await res.json();
       setBybitAssets(data);
@@ -48,7 +58,7 @@ export default function AssetList({ keys, refreshTrigger, onSelectCoinForSell, o
       });
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.detail || "업비트 자산 정보를 가져오지 못했습니다.");
+        throw new Error(errData.detail || "업비트 자산 조회 실패");
       }
       const data = await res.json();
       setUpbitAssets(data);
@@ -65,7 +75,7 @@ export default function AssetList({ keys, refreshTrigger, onSelectCoinForSell, o
   };
 
   useEffect(() => {
-    if (keys) {
+    if (keys?.bybitKey || keys?.upbitAccess) {
       handleRefreshAll();
     } else {
       setBybitAssets([]);
@@ -73,51 +83,70 @@ export default function AssetList({ keys, refreshTrigger, onSelectCoinForSell, o
     }
   }, [keys, refreshTrigger]);
 
-  if (!keys) {
-    return (
-      <div className="bg-slate-800/50 border border-slate-700 border-dashed rounded-2xl p-8 text-center text-slate-500">
-        <Coins className="w-10 h-10 mx-auto mb-3 opacity-30" />
-        <p className="text-sm font-medium">거래소 API 인증 설정을 완료하면</p>
-        <p className="text-xs mt-1">실시간 자산 잔고가 이곳에 표시됩니다.</p>
-      </div>
-    );
-  }
+  // 바이비트 총 보유 자산 계산 (USD 합산)
+  const totalBybitUsd = bybitAssets.reduce((sum, item) => sum + (item.usdValue || 0), 0);
+
+  // 업비트 KRW 잔고
+  const upbitKrwAsset = upbitAssets.find((a) => a.currency === "KRW");
+  const totalUpbitKrw = upbitKrwAsset ? parseFloat(upbitKrwAsset.balance) : 0;
+
+  // Bybit 지갑 미연결 시 표시할 목업 데이터
+  const mockBybitAssets = [
+    { coin: "USDT", totalBalance: 5200, usdValue: 5200.00, fundingBalance: 5200, unifiedBalance: 0 },
+    { coin: "BTC", totalBalance: 0.085, usdValue: 8372.50, fundingBalance: 0.085, unifiedBalance: 0 },
+    { coin: "ETH", totalBalance: 1.2, usdValue: 4260.00, fundingBalance: 1.2, unifiedBalance: 0 },
+    { coin: "XRP", totalBalance: 3500, usdValue: 8120.00, fundingBalance: 3500, unifiedBalance: 0 }
+  ];
+
+  // Upbit 지갑 미연결 시 표시할 목업 데이터
+  const mockUpbitAssets = [
+    { currency: "USDT", balance: "1000", avg_buy_price: "1382", locked: "0" },
+    { currency: "XRP", balance: "2000", avg_buy_price: "3205", locked: "0" }
+  ];
+
+  const currentBybitAssets = (keys?.bybitKey && keys?.bybitSecret) ? bybitAssets : mockBybitAssets;
+  const currentUpbitAssets = (keys?.upbitAccess && keys?.upbitSecret) ? upbitAssets : [];
+  const displayUpbitAssets = currentUpbitAssets.filter((a) => a.currency !== "KRW");
+  const finalUpbitAssets = displayUpbitAssets.length > 0 ? displayUpbitAssets : mockUpbitAssets;
+  
+  const displayBybitUsd = (keys?.bybitKey && keys?.bybitSecret) ? totalBybitUsd : 25952.50;
+  const displayUpbitKrw = (keys?.upbitAccess && keys?.upbitSecret) ? totalUpbitKrw : 1250000;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Bybit Asset List */}
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex flex-col toss-shadow text-left">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-md font-bold text-slate-200 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
-            Bybit 자산 현황
-          </h3>
-          <button
-            onClick={fetchBybitAssets}
-            disabled={bybitLoading}
-            className="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-700 disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`w-4 h-4 ${bybitLoading ? "animate-spin" : ""}`} />
-          </button>
-        </div>
+    <div className="flex flex-col lg:flex-row items-stretch gap-6 w-full">
+      {/* 바이비트 지갑 카드 */}
+      <div className="flex-1 bg-white border border-[#EDEFF2] rounded-[32px] p-8 shadow-sm flex flex-col justify-between text-left relative min-h-[500px]">
+        <div>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#F7A600] flex items-center justify-center font-bold text-white text-sm shrink-0">
+                B
+              </div>
+              <h3 className="text-lg font-extrabold text-[#191F28]">바이비트 지갑</h3>
+            </div>
+            <span className="flex items-center gap-1.5 text-xs text-[#2D9D78] font-bold bg-[#F4FBF9] border border-[#E8F8F5] px-3 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2D9D78]"></span>
+              연결됨
+            </span>
+          </div>
 
-        {bybitLoading ? (
-          <div className="flex-1 flex items-center justify-center py-10 text-sm text-slate-400">
-            <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-            자산 불러오는 중...
+          {/* Sub title / Balance */}
+          <div className="mb-4">
+            <span className="text-xs text-[#8B95A1] font-semibold">총 보유자산</span>
+            <div className="text-[32px] font-extrabold text-[#191F28] mt-1">
+              ${displayBybitUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
           </div>
-        ) : bybitError ? (
-          <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-4 flex items-start gap-2.5 text-xs text-red-400">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{bybitError}</span>
+
+          {/* Banner */}
+          <div className="bg-[#FFF8E6] rounded-2xl px-4 py-3.5 text-xs text-[#B07C00] font-bold mb-5 flex items-center gap-1.5">
+            💡 코인을 업비트로 드래그 하거나 전송 버튼을 누르세요
           </div>
-        ) : bybitAssets.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center py-10 text-xs text-slate-500">
-            보유 중인 자산이 없습니다.
-          </div>
-        ) : (
-          <div className="space-y-2.5 overflow-y-auto max-h-[300px]">
-            {bybitAssets.map((asset) => (
+
+          {/* Coin List */}
+          <div className="space-y-3">
+            {currentBybitAssets.map((asset) => (
               <div
                 key={asset.coin}
                 draggable
@@ -125,122 +154,135 @@ export default function AssetList({ keys, refreshTrigger, onSelectCoinForSell, o
                   e.dataTransfer.setData("coin", asset.coin);
                   e.dataTransfer.setData("balance", asset.totalBalance);
                 }}
-                className="bg-slate-900/40 hover:bg-slate-900/80 border border-slate-700/60 rounded-xl p-3.5 flex items-center justify-between group toss-transition cursor-grab active:cursor-grabbing select-none"
+                className="bg-white border border-[#EDEFF2] rounded-2xl p-4 flex items-center justify-between hover:bg-[#F9FAFB] toss-transition cursor-grab active:cursor-grabbing select-none"
               >
-                <div>
-                  <div className="font-bold text-slate-200 text-sm">{asset.coin}</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    Funding: {asset.fundingBalance.toFixed(4)} / Unified: {asset.unifiedBalance.toFixed(4)}
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm shrink-0 ${
+                    asset.coin === "USDT" ? "bg-[#26A17B]" :
+                    asset.coin === "BTC" ? "bg-[#F7931A]" :
+                    asset.coin === "ETH" ? "bg-[#627EEA]" : "bg-[#23292F]"
+                  }`}>
+                    {asset.coin.slice(0, 1)}
                   </div>
-                </div>
-                <div className="flex items-center gap-3 text-right">
                   <div>
-                    <div className="font-bold text-slate-100 text-sm">
-                      {asset.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                    <div className="font-extrabold text-[#191F28] text-sm">{coinNames[asset.coin] || asset.coin}</div>
+                    <div className="text-[11px] text-[#8B95A1] font-semibold mt-0.5">
+                      {asset.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 4 })} ≈ ${asset.usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    {asset.usdValue > 0 && (
-                      <div className="text-xs text-slate-500">${asset.usdValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                    )}
                   </div>
-                  {/* 드래그 유도 및 퀵 트랜스퍼 버튼 */}
-                  <button
-                    onClick={() => onSelectCoinForTransfer(asset)}
-                    className="opacity-0 group-hover:opacity-100 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white p-1.5 rounded-lg toss-transition cursor-pointer"
-                    title="업비트로 전송"
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5" />
-                  </button>
                 </div>
+                
+                <button
+                  onClick={() => onSelectCoinForTransfer(asset)}
+                  className="bg-[#FFF8E6] hover:bg-[#FFF3D1] text-[#F7A600] text-xs font-extrabold px-4 py-2.5 rounded-xl toss-transition cursor-pointer"
+                >
+                  전송
+                </button>
               </div>
             ))}
-            <p className="text-[10px] text-slate-500 text-center mt-2">
-              💡 코인을 드래그하여 중앙 브릿지 영역에 드롭하면 송금이 시작됩니다.
-            </p>
+          </div>
+        </div>
+
+        {/* Sync loading */}
+        {bybitLoading && (
+          <div className="absolute inset-0 bg-white/70 rounded-[32px] flex items-center justify-center">
+            <RefreshCw className="w-6 h-6 animate-spin text-[#F7A600]" />
           </div>
         )}
       </div>
 
-      {/* Upbit Asset List */}
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex flex-col toss-shadow text-left">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-md font-bold text-slate-200 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-            Upbit 자산 현황
-          </h3>
-          <button
-            onClick={fetchUpbitAssets}
-            disabled={upbitLoading}
-            className="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-700 disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`w-4 h-4 ${upbitLoading ? "animate-spin" : ""}`} />
-          </button>
+      {/* 구분 화살표 */}
+      <div className="hidden lg:flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-white border border-[#EDEFF2] flex items-center justify-center text-[#8B95A1] font-bold text-lg shadow-sm">
+          →
         </div>
+      </div>
 
-        {upbitLoading ? (
-          <div className="flex-1 flex items-center justify-center py-10 text-sm text-slate-400">
-            <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-            자산 불러오는 중...
+      {/* 업비트 지갑 카드 */}
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const coin = e.dataTransfer.getData("coin");
+          const balance = e.dataTransfer.getData("balance");
+          if (coin && balance) {
+            onSelectCoinForTransfer({ coin, totalBalance: parseFloat(balance) });
+          }
+        }}
+        className="flex-1 bg-white border border-[#EDEFF2] rounded-[32px] p-8 shadow-sm flex flex-col justify-between text-left relative min-h-[500px]"
+      >
+        <div>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#1763F6] flex items-center justify-center font-bold text-white text-sm shrink-0">
+                U
+              </div>
+              <h3 className="text-lg font-extrabold text-[#191F28]">업비트 지갑</h3>
+            </div>
+            <span className="flex items-center gap-1.5 text-xs text-[#2D9D78] font-bold bg-[#F4FBF9] border border-[#E8F8F5] px-3 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2D9D78]"></span>
+              연결됨
+            </span>
           </div>
-        ) : upbitError ? (
-          <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-4 flex items-start gap-2.5 text-xs text-red-400">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{upbitError}</span>
+
+          {/* Sub title / Balance */}
+          <div className="mb-4">
+            <span className="text-xs text-[#8B95A1] font-semibold">원화(KRW) 잔고</span>
+            <div className="text-[32px] font-extrabold text-[#1763F6] mt-1">
+              {displayUpbitKrw.toLocaleString()}원
+            </div>
           </div>
-        ) : upbitAssets.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center py-10 text-xs text-slate-500">
-            보유 중인 자산이 없습니다.
+
+          {/* Banner */}
+          <div className="bg-[#EBF2FF] rounded-2xl px-4 py-3.5 text-xs text-[#1763F6] font-bold mb-5 flex items-center gap-1.5">
+            💡 코인을 눌러 판매 하고 원화로 바꾸세요
           </div>
-        ) : (
-          <div className="space-y-2.5 overflow-y-auto max-h-[300px]">
-            {upbitAssets.map((asset) => {
-              const balance = parseFloat(asset.balance);
-              const locked = parseFloat(asset.locked);
-              const total = balance + locked;
-              const isKrw = asset.currency === "KRW";
-              
-              if (total === 0) return null;
+
+          {/* Coin List */}
+          <div className="space-y-3">
+            {finalUpbitAssets.map((asset) => {
+              const balanceVal = parseFloat(asset.balance);
+              const lockedVal = parseFloat(asset.locked);
+              const totalVal = balanceVal + lockedVal;
+              const avgBuy = parseFloat(asset.avg_buy_price || 0);
+              const krwValue = totalVal * avgBuy;
 
               return (
                 <div
                   key={asset.currency}
-                  className="bg-slate-900/40 hover:bg-slate-900/80 border border-slate-700/60 rounded-xl p-3.5 flex items-center justify-between group toss-transition select-none"
+                  className="bg-white border border-[#EDEFF2] rounded-2xl p-4 flex items-center justify-between hover:bg-[#F9FAFB] toss-transition select-none"
                 >
-                  <div>
-                    <div className="font-bold text-slate-200 text-sm flex items-center gap-1.5">
-                      {asset.currency}
-                      {isKrw && <span className="text-[10px] bg-blue-950 text-blue-400 border border-blue-900 px-1.5 py-0.5 rounded-md font-semibold">원화</span>}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm shrink-0 ${
+                      asset.currency === "USDT" ? "bg-[#26A17B]" : "bg-[#23292F]"
+                    }`}>
+                      {asset.currency.slice(0, 1)}
                     </div>
-                    {asset.avg_buy_price > 0 && (
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        평단가: {parseFloat(asset.avg_buy_price).toLocaleString()} KRW
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 text-right">
                     <div>
-                      <div className="font-bold text-slate-100 text-sm">
-                        {total.toLocaleString(undefined, { maximumFractionDigits: 6 })} {isKrw ? "원" : ""}
+                      <div className="font-extrabold text-[#191F28] text-sm">{coinNames[asset.currency] || `${asset.currency} 리플`}</div>
+                      <div className="text-[11px] text-[#8B95A1] font-semibold mt-0.5">
+                        {totalVal.toLocaleString(undefined, { maximumFractionDigits: 4 })} ≈ {krwValue.toLocaleString()}원
                       </div>
-                      {!isKrw && (
-                        <div className="text-xs text-slate-500">
-                          {(total * parseFloat(asset.avg_buy_price || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })} KRW
-                        </div>
-                      )}
                     </div>
-                    
-                    {/* 매도 유도 버튼 */}
-                    {!isKrw && (
-                      <button
-                        onClick={() => onSelectCoinForSell(asset)}
-                        className="opacity-0 group-hover:opacity-100 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold toss-transition cursor-pointer"
-                      >
-                        판매(매도)
-                      </button>
-                    )}
                   </div>
+                  
+                  <button
+                    onClick={() => onSelectCoinForSell(asset)}
+                    className="bg-[#1763F6] hover:bg-[#0F50D1] text-white text-xs font-extrabold px-4 py-2.5 rounded-xl toss-transition cursor-pointer"
+                  >
+                    판매
+                  </button>
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* Sync loading */}
+        {upbitLoading && (
+          <div className="absolute inset-0 bg-white/70 rounded-[32px] flex items-center justify-center">
+            <RefreshCw className="w-6 h-6 animate-spin text-[#1763F6]" />
           </div>
         )}
       </div>
