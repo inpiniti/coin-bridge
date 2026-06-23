@@ -130,19 +130,7 @@ const API_BASE_URL = import.meta.env.DEV
   ? "/api"
   : "https://younginpiniti-coin-bridge.hf.space/api";
 
-export default function App({ hasRegisteredAccount: initialHasRegistered = true }) {
-  // --- Kbank Registered Account States ---
-  const [regName, setRegName] = useState(() => localStorage.getItem("kb_account_name") || "김환전");
-  const [regAccount, setRegAccount] = useState(() => localStorage.getItem("kb_account_num") || "100-123-456789");
-  const [hasRegisteredAccount, setHasRegisteredAccount] = useState(() => {
-    const saved = localStorage.getItem("kb_has_account");
-    return saved !== null ? saved === "true" : initialHasRegistered;
-  });
-
-  const [kbEditOpen, setKbEditOpen] = useState(false);
-  const [tempName, setTempName] = useState("");
-  const [tempAccount, setTempAccount] = useState("");
-
+export default function App() {
   // --- Keys State (LocalStorage sync) ---
   const [bybitKey, setBybitKey] = useState(() => localStorage.getItem("bybit_api_key") || "");
   const [bybitSecret, setBybitSecret] = useState(() => localStorage.getItem("bybit_api_secret") || "");
@@ -187,11 +175,7 @@ export default function App({ hasRegisteredAccount: initialHasRegistered = true 
   const [sellSym, setSellSym] = useState(null);
   const [sellQty, setSellQty] = useState("");
 
-  const [withdrawMode, setWithdrawMode] = useState("registered");
   const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [manualBank, setManualBank] = useState("케이뱅크");
-  const [manualName, setManualName] = useState("");
-  const [manualNum, setManualNum] = useState("");
   const [wdOpen, setWdOpen] = useState(false);
 
   const [toasts, setToasts] = useState([]);
@@ -487,12 +471,6 @@ export default function App({ hasRegisteredAccount: initialHasRegistered = true 
     }
   };
 
-  // --- Kbank Edit Handlers ---
-  const openKbEdit = () => {
-    setTempName(regName);
-    setTempAccount(regAccount);
-    setKbEditOpen(true);
-  };
 
   const saveKbEdit = () => {
     if (!tempName || !tempAccount) {
@@ -734,43 +712,12 @@ export default function App({ hasRegisteredAccount: initialHasRegistered = true 
             <div style={{ fontSize: 25, fontWeight: 800, letterSpacing: "-0.8px", marginTop: 2, color: "#5A4FE0" }}>{fmtKrw(krw)}</div>
           </div>
 
-          <div style={{ display: "flex", gap: 6, background: "#F2F4F6", padding: 4, borderRadius: 11, marginBottom: 14 }}>
-            {[["registered", "등록 계좌"], ["manual", "직접 입력"]].map(([mode, label]) => {
-              const active = withdrawMode === mode;
-              return (
-                <button key={mode} onClick={() => setWithdrawMode(mode)} style={{ flex: 1, border: "none", cursor: "pointer", borderRadius: 8, padding: "8px 0", fontSize: 12.5, fontWeight: 700, letterSpacing: "-0.2px", background: active ? "#fff" : "transparent", color: active ? "#191F28" : "#8B95A1", boxShadow: active ? "0 1px 3px rgba(0,0,0,.08)" : "none" }}>{label}</button>
-              );
-            })}
-          </div>
-
-          {withdrawMode === "registered" ? (
-             hasRegisteredAccount ? (
-               <div style={{ border: "1.5px solid #5A4FE0", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, background: "#FBFBFF" }}>
-                 <div style={{ width: 38, height: 38, borderRadius: 10, background: "#5A4FE0", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 16, fontWeight: 900 }}>K</div>
-                 <div style={{ flex: 1 }}>
-                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                     <span style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: "-0.3px" }}>케이뱅크 · {regName}</span>
-                     <button
-                       onClick={openKbEdit}
-                       style={{ border: "none", background: "transparent", color: "#8B95A1", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: 0, textDecoration: "underline" }}
-                     >
-                       수정
-                     </button>
-                   </div>
-                   <div style={{ fontSize: 13, color: "#6B7684", fontWeight: 600, marginTop: 2, letterSpacing: "0.3px" }}>{regAccount}</div>
-                 </div>
-                 <div style={{ fontSize: 11, fontWeight: 700, color: "#5A4FE0", background: "#EEEDFC", padding: "4px 8px", borderRadius: 7 }}>등록됨</div>
-               </div>
-             ) : (
-               <div onClick={openKbEdit} style={{ border: "1.5px dashed #D9DEE3", borderRadius: 14, padding: "22px 16px", textAlign: "center", color: "#B0B8C1", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>등록된 계좌가 없습니다<br /><span style={{ fontSize: 12, color: "#5A4FE0", textDecoration: "underline" }}>계좌 등록하기</span></div>
-             )
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-              <Field label="은행" value={manualBank} onChange={(e) => setManualBank(e.target.value)} />
-              <Field label="예금주" value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="예금주명" />
-              <Field label="계좌번호" value={manualNum} onChange={(e) => setManualNum(e.target.value)} placeholder="000-000-000000" mono />
+          <div style={{ border: "1px dashed #7B73E8", borderRadius: 14, padding: "16px 14px", background: "#FBFBFF", display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 14 }}>
+            <span style={{ fontSize: 15, lineHeight: 1 }}>💡</span>
+            <div style={{ fontSize: 12.5, color: "#4E5968", fontWeight: 600, lineHeight: 1.5, letterSpacing: "-0.3px" }}>
+              업비트에 연동되어 있는 회원의 케이뱅크 계좌로 자동 출금됩니다.
             </div>
-          )}
+          </div>
 
           <div style={{ marginTop: 14 }}>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8B95A1", marginBottom: 5 }}>출금 금액</div>
@@ -858,29 +805,10 @@ export default function App({ hasRegisteredAccount: initialHasRegistered = true 
             <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-1px", color: "#5A4FE0" }}>{fmtKrw(pnum(withdrawAmount))}</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 9, fontSize: 13, background: "#F9FAFB", borderRadius: 12, padding: "14px 14px" }}>
-            <Row label="받는 은행" value={acc.bank} />
-            <Row label="예금주" value={acc.name} />
-            <Row label="계좌번호" value={acc.account} />
+            <Row label="받는 은행" value="케이뱅크" />
+            <Row label="수신 계좌" value="업비트 연동 계좌" />
           </div>
           <ModalButtons onCancel={() => setWdOpen(false)} onConfirm={confirmWithdraw} confirmLabel="출금 확인" confirmBg="#5A4FE0" confirmColor="#fff" />
-        </Modal>
-      )}
-
-      {/* KBANK EDIT MODAL */}
-      {kbEditOpen && (
-        <Modal onClose={() => setKbEditOpen(false)}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#5A4FE0", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 16, fontWeight: 900 }}>K</div>
-            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.4px" }}>케이뱅크 등록 계좌 수정</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Field label="예금주 (실명)" value={tempName} onChange={(e) => setTempName(e.target.value)} placeholder="예금주명" />
-            <Field label="계좌번호" value={tempAccount} onChange={(e) => setTempAccount(e.target.value)} placeholder="000-000-000000" mono />
-          </div>
-          <div style={{ display: "flex", gap: 9, marginTop: 22 }}>
-            <button onClick={() => setKbEditOpen(false)} style={{ flex: 1, border: "none", cursor: "pointer", borderRadius: 12, padding: "13px 0", fontSize: 14, fontWeight: 700, background: "#F2F4F6", color: "#4E5968" }}>취소</button>
-            <button onClick={saveKbEdit} style={{ flex: 2, border: "none", cursor: "pointer", borderRadius: 12, padding: "13px 0", fontSize: 14, fontWeight: 800, background: "#5A4FE0", color: "#fff" }}>저장</button>
-          </div>
         </Modal>
       )}
 
