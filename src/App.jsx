@@ -21,23 +21,23 @@ const pnum = (v) => {
   return isNaN(n) ? 0 : n;
 };
 
-function StatusPill({ connected }) {
+function StatusPill({ connected, isVirtual }) {
   return (
     <div
       style={{
         display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700,
         padding: "4px 9px", borderRadius: 20,
-        background: connected ? "#E7F8F0" : "#FDECEC",
-        color: connected ? "#119A5B" : "#E5484D",
+        background: connected ? (isVirtual ? "#FFF1D6" : "#E7F8F0") : "#FDECEC",
+        color: connected ? (isVirtual ? "#B07900" : "#119A5B") : "#E5484D",
       }}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor" }} />
-      {connected ? "연결됨" : "미연결"}
+      {connected ? (isVirtual ? "가상연결됨" : "연결됨") : "미연결"}
     </div>
   );
 }
 
-function Connector({ label, badge, badgeBg, badgeColor, apiKey, apiSecret, onKeyChange, onSecretChange, connected, onToggle }) {
+function Connector({ label, badge, badgeBg, badgeColor, apiKey, apiSecret, onKeyChange, onSecretChange, connected, onToggle, isVirtual }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #EAEDF0", borderRadius: 14, padding: "8px 10px 8px 12px", boxShadow: "0 1px 2px rgba(0,0,0,.03)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7, width: 78 }}>
@@ -46,20 +46,21 @@ function Connector({ label, badge, badgeBg, badgeColor, apiKey, apiSecret, onKey
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <input
-          value={apiKey} onChange={onKeyChange} disabled={connected} placeholder="API Key"
+          value={apiKey} onChange={onKeyChange} disabled={connected || isVirtual} placeholder="API Key"
           style={{ width: 150, border: "1px solid #E5E8EB", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 600, background: "#F9FAFB", color: "#333D4B" }}
         />
         <input
           type="password"
-          value={apiSecret} onChange={onSecretChange} disabled={connected} placeholder="Secret Key"
+          value={apiSecret} onChange={onSecretChange} disabled={connected || isVirtual} placeholder="Secret Key"
           style={{ width: 150, border: "1px solid #E5E8EB", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 600, background: "#F9FAFB", color: "#333D4B" }}
         />
       </div>
       <button
         onClick={onToggle}
-        style={{ border: "none", cursor: "pointer", borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, letterSpacing: "-0.2px", whiteSpace: "nowrap", background: connected ? "#E7F8F0" : "#191F28", color: connected ? "#119A5B" : "#fff" }}
+        disabled={isVirtual}
+        style={{ border: "none", cursor: isVirtual ? "not-allowed" : "pointer", borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, letterSpacing: "-0.2px", whiteSpace: "nowrap", background: connected ? (isVirtual ? "#FFF1D6" : "#E7F8F0") : "#191F28", color: connected ? (isVirtual ? "#B07900" : "#119A5B") : "#fff", opacity: isVirtual ? 0.6 : 1 }}
       >
-        {connected ? "연결됨" : "연결"}
+        {connected ? (isVirtual ? "가상모드" : "연결됨") : "연결"}
       </button>
     </div>
   );
@@ -106,8 +107,9 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
 
   const [bybitConnected, setBybitConnected] = useState(false);
   const [upbitConnected, setUpbitConnected] = useState(false);
+  const [isVirtual, setIsVirtual] = useState(false);
 
-  // --- Real Assets state (populated from API) ---
+  // --- Real Assets state (populated from API or Mock) ---
   const [bybit, setBybit] = useState([]);
   const [upbit, setUpbit] = useState([]);
   const [krw, setKrw] = useState(0);
@@ -139,6 +141,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
 
   // --- API Sync Functions ---
   const fetchBybitAssets = async () => {
+    if (isVirtual) return;
     if (!bybitKey || !bybitSecret) return;
     try {
       const res = await fetch("/api/bybit/balance", {
@@ -157,6 +160,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
   };
 
   const fetchUpbitAssets = async () => {
+    if (isVirtual) return;
     if (!upbitAccess || !upbitSecret) return;
     try {
       const res = await fetch("/api/upbit/balance", {
@@ -187,27 +191,22 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
     }
   };
 
-  // Auto load assets on connection
+  // Auto load assets on connection (Only for non-virtual mode)
   useEffect(() => {
-    if (bybitConnected) {
+    if (bybitConnected && !isVirtual) {
       fetchBybitAssets();
       const t = setInterval(fetchBybitAssets, 10000);
       return () => clearInterval(t);
-    } else {
-      setBybit([]);
     }
-  }, [bybitConnected, bybitKey, bybitSecret]);
+  }, [bybitConnected, bybitKey, bybitSecret, isVirtual]);
 
   useEffect(() => {
-    if (upbitConnected) {
+    if (upbitConnected && !isVirtual) {
       fetchUpbitAssets();
       const t = setInterval(fetchUpbitAssets, 10000);
       return () => clearInterval(t);
-    } else {
-      setUpbit([]);
-      setKrw(0);
     }
-  }, [upbitConnected, upbitAccess, upbitSecret]);
+  }, [upbitConnected, upbitAccess, upbitSecret, isVirtual]);
 
   // Load initial connection status if keys exist in storage
   useEffect(() => {
@@ -215,8 +214,57 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
     if (upbitAccess && upbitSecret) setUpbitConnected(true);
   }, []);
 
+  // --- virtual mode controller ---
+  const toggleVirtualMode = () => {
+    const next = !isVirtual;
+    setIsVirtual(next);
+    
+    if (next) {
+      // 가상 연결 시작: 초기 목업 데이터를 세팅합니다.
+      setBybitConnected(true);
+      setUpbitConnected(true);
+      setBybitKey("VIRTUAL-BYBIT-KEY");
+      setBybitSecret("VIRTUAL-BYBIT-SECRET");
+      setUpbitAccess("VIRTUAL-UPBIT-KEY");
+      setUpbitSecret("VIRTUAL-UPBIT-SECRET");
+      
+      setBybit([
+        { sym: "USDT", amount: 5200 },
+        { sym: "BTC", amount: 0.085 },
+        { sym: "ETH", amount: 1.2 },
+        { sym: "XRP", amount: 3500 },
+      ]);
+      setUpbit([
+        { sym: "USDT", amount: 1000 },
+        { sym: "XRP", amount: 2000 },
+      ]);
+      setKrw(1250000);
+      addToast("가상 연결(모의 테스트)이 활성화되었습니다.", "ok");
+    } else {
+      // 가상 연결 해제: 로컬 스토리지 키 확인 후 실제 연동으로 복구 시도
+      const savedBybitKey = localStorage.getItem("bybit_api_key") || "";
+      const savedBybitSecret = localStorage.getItem("bybit_api_secret") || "";
+      const savedUpbitAccess = localStorage.getItem("upbit_access_key") || "";
+      const savedUpbitSecret = localStorage.getItem("upbit_secret_key") || "";
+      
+      setBybitKey(savedBybitKey);
+      setBybitSecret(savedBybitSecret);
+      setUpbitAccess(savedUpbitAccess);
+      setUpbitSecret(savedUpbitSecret);
+
+      setBybitConnected(!!(savedBybitKey && savedBybitSecret));
+      setUpbitConnected(!!(savedUpbitAccess && savedUpbitSecret));
+      
+      setBybit([]);
+      setUpbit([]);
+      setKrw(0);
+      addToast("가상 연결이 해제되었습니다.", "send");
+    }
+  };
+
   // --- connect toggles ---
   const toggleBybit = () => {
+    if (isVirtual) return;
     const next = !bybitConnected;
     if (next) {
       if (!bybitKey || !bybitSecret) {
@@ -233,6 +281,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
   };
 
   const toggleUpbit = () => {
+    if (isVirtual) return;
     const next = !upbitConnected;
     if (next) {
       if (!upbitAccess || !upbitSecret) {
@@ -265,8 +314,18 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
     if (qty <= 0) return addToast("수량을 입력하세요", "send");
     if (qty > c.amount) qty = c.amount;
 
-    addToast(`${xferSym} 전송 신청 중...`, "send");
+    const recv = Math.max(0, qty - m.fee);
 
+    if (isVirtual) {
+      // 가상 전송 처리: 로컬 잔고에서 증감
+      setBybit((s) => reduceBal(s, xferSym, qty));
+      setUpbit((s) => addBal(s, xferSym, recv));
+      setXferSym(null);
+      addToast(`${xferSym} ${fmtCoin(recv)} 업비트 가상 입금 완료`, "send");
+      return;
+    }
+
+    addToast(`${xferSym} 전송 신청 중...`, "send");
     try {
       // 1. 업비트 입금주소 자동 획득
       const addrRes = await fetch(`/api/upbit/deposit-address?currency=${xferSym}`, {
@@ -301,7 +360,6 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
 
       setXferSym(null);
       addToast(`${xferSym} 송금 요청 완료!`, "send");
-      // 즉시 갱신
       setTimeout(() => {
         fetchBybitAssets();
         fetchUpbitAssets();
@@ -322,12 +380,23 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
   const confirmSell = async () => {
     const c = upbit.find((x) => x.sym === sellSym);
     if (!c) return;
+    const m = META[sellSym] || { krw: sc.krw || 1300 };
     let qty = pnum(sellQty);
     if (qty <= 0) return addToast("수량을 입력하세요", "send");
     if (qty > c.amount) qty = c.amount;
 
-    addToast(`${sellSym} 매도 주문 발송 중...`, "money");
+    const net = Math.floor(qty * m.krw * 0.9995);
 
+    if (isVirtual) {
+      // 가상 매도 처리
+      setUpbit((s) => reduceBal(s, sellSym, qty));
+      setKrw((k) => k + net);
+      setSellSym(null);
+      addToast(`${sellSym} 가상 판매 · ${fmtKrw(net)} 입금`, "money");
+      return;
+    }
+
+    addToast(`${sellSym} 매도 주문 발송 중...`, "money");
     try {
       const res = await fetch("/api/upbit/sell", {
         method: "POST",
@@ -370,8 +439,17 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
 
   const confirmWithdraw = async () => {
     const amt = pnum(withdrawAmount);
-    addToast("케이뱅크 출금 처리 중...", "money");
 
+    if (isVirtual) {
+      // 가상 출금 처리
+      setKrw((k) => k - amt);
+      setWdOpen(false);
+      setWithdrawAmount("");
+      addToast(`케이뱅크로 ${fmtKrw(amt)} 가상 출금 완료`, "money");
+      return;
+    }
+
+    addToast("케이뱅크 출금 처리 중...", "money");
     try {
       const res = await fetch("/api/upbit/withdraw-krw", {
         method: "POST",
@@ -417,8 +495,21 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 42, height: 42, borderRadius: 13, background: "#1763F6", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 20, fontWeight: 800 }}>⇄</div>
           <div>
-            <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.4px" }}>환전 도우미</div>
-            <div style={{ fontSize: 12.5, color: "#8B95A1", fontWeight: 600, letterSpacing: "-0.2px" }}>바이비트 → 업비트 → 케이뱅크</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.4px" }}>환전 도우미</span>
+              <button
+                onClick={toggleVirtualMode}
+                style={{
+                  border: "1px solid #EAEDF0", cursor: "pointer", borderRadius: 8, padding: "4px 10px",
+                  fontSize: 11, fontWeight: 700, background: isVirtual ? "#FFF1D6" : "#fff",
+                  color: isVirtual ? "#B07900" : "#8B95A1", boxShadow: "0 1px 2px rgba(0,0,0,.03)",
+                  transition: "all .12s"
+                }}
+              >
+                {isVirtual ? "⚡ 가상연결 해제" : "⚙️ 가상 연결(모의테스트)"}
+              </button>
+            </div>
+            <div style={{ fontSize: 12.5, color: "#8B95A1", fontWeight: 600, letterSpacing: "-0.2px", marginTop: 2 }}>바이비트 → 업비트 → 케이뱅크</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -427,14 +518,14 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
             apiKey={bybitKey} apiSecret={bybitSecret}
             onKeyChange={(e) => setBybitKey(e.target.value)}
             onSecretChange={(e) => setBybitSecret(e.target.value)}
-            connected={bybitConnected} onToggle={toggleBybit}
+            connected={bybitConnected} onToggle={toggleBybit} isVirtual={isVirtual}
           />
           <Connector
             label="Upbit" badge="U" badgeBg="#1763F6" badgeColor="#fff"
             apiKey={upbitAccess} apiSecret={upbitSecret}
             onKeyChange={(e) => setUpbitAccess(e.target.value)}
             onSecretChange={(e) => setUpbitSecret(e.target.value)}
-            connected={upbitConnected} onToggle={toggleUpbit}
+            connected={upbitConnected} onToggle={toggleUpbit} isVirtual={isVirtual}
           />
         </div>
       </div>
@@ -448,7 +539,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
               <div style={{ width: 30, height: 30, borderRadius: 9, background: "#F7A600", display: "flex", alignItems: "center", justifyContent: "center", color: "#16120A", fontSize: 16, fontWeight: 900 }}>B</div>
               <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.4px" }}>바이비트 지갑</div>
             </div>
-            <StatusPill connected={bybitConnected} />
+            <StatusPill connected={bybitConnected} isVirtual={isVirtual} />
           </div>
           {bybitConnected ? (
             <div>
@@ -503,7 +594,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
               <div style={{ width: 30, height: 30, borderRadius: 9, background: "#1763F6", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 16, fontWeight: 900 }}>U</div>
               <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.4px" }}>업비트 지갑</div>
             </div>
-            <StatusPill connected={upbitConnected} />
+            <StatusPill connected={upbitConnected} isVirtual={isVirtual} />
           </div>
           {upbitConnected ? (
             <div>
