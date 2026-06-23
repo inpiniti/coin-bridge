@@ -21,6 +21,34 @@ const pnum = (v) => {
   return isNaN(n) ? 0 : n;
 };
 
+const reduceBal = (state, sym, qty) => {
+  return state
+    .map((item) => {
+      if (item.sym === sym) {
+        return { ...item, amount: Math.max(0, item.amount - qty) };
+      }
+      return item;
+    })
+    .filter((item) => item.amount > 0.00000001);
+};
+
+const addBal = (state, sym, qty) => {
+  const exists = state.some((item) => item.sym === sym);
+  if (exists) {
+    return state.map((item) => {
+      if (item.sym === sym) {
+        return { ...item, amount: item.amount + qty };
+      }
+      return item;
+    });
+  } else {
+    const usd = META[sym]?.usd || 1;
+    const krw = META[sym]?.krw || 1300;
+    return [...state, { sym, amount: qty, usd, krw }];
+  }
+};
+
+
 function StatusPill({ connected, isVirtual }) {
   return (
     <div
