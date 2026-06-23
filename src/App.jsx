@@ -126,6 +126,10 @@ const Row = ({ label, value, color }) => (
   </div>
 );
 
+const API_BASE_URL = import.meta.env.DEV
+  ? "/api"
+  : "https://younginpiniti-coin-bridge.hf.space/api";
+
 export default function App({ hasRegisteredAccount = true, registeredName = "김환전", registeredAccount = "100-123-456789" }) {
   // --- Keys State (LocalStorage sync) ---
   const [bybitKey, setBybitKey] = useState(() => localStorage.getItem("bybit_api_key") || "");
@@ -136,6 +140,27 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
   const [bybitConnected, setBybitConnected] = useState(false);
   const [upbitConnected, setUpbitConnected] = useState(false);
   const [isVirtual, setIsVirtual] = useState(false);
+
+  // --- Server Public IP ---
+  const [serverIp, setServerIp] = useState("조회 중...");
+
+  useEffect(() => {
+    const fetchServerIp = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/ip`);
+        if (res.ok) {
+          const data = await res.json();
+          setServerIp(data.ip || "조회 실패");
+        } else {
+          setServerIp("조회 실패");
+        }
+      } catch (e) {
+        console.error("Failed to fetch server IP", e);
+        setServerIp("에러");
+      }
+    };
+    fetchServerIp();
+  }, []);
 
   // --- Real Assets state (populated from API or Mock) ---
   const [bybit, setBybit] = useState([]);
@@ -172,7 +197,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
     if (isVirtual) return;
     if (!bybitKey || !bybitSecret) return;
     try {
-      const res = await fetch("/api/bybit/balance", {
+      const res = await fetch(`${API_BASE_URL}/bybit/balance`, {
         headers: {
           "X-Bybit-Api-Key": bybitKey,
           "X-Bybit-Api-Secret": bybitSecret,
@@ -191,7 +216,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
     if (isVirtual) return;
     if (!upbitAccess || !upbitSecret) return;
     try {
-      const res = await fetch("/api/upbit/balance", {
+      const res = await fetch(`${API_BASE_URL}/upbit/balance`, {
         headers: {
           "X-Upbit-Access-Key": upbitAccess,
           "X-Upbit-Secret-Key": upbitSecret,
@@ -356,7 +381,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
     addToast(`${xferSym} 전송 신청 중...`, "send");
     try {
       // 1. 업비트 입금주소 자동 획득
-      const addrRes = await fetch(`/api/upbit/deposit-address?currency=${xferSym}`, {
+      const addrRes = await fetch(`${API_BASE_URL}/upbit/deposit-address?currency=${xferSym}`, {
         headers: {
           "X-Upbit-Access-Key": upbitAccess,
           "X-Upbit-Secret-Key": upbitSecret,
@@ -368,7 +393,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
       const tag = addrData.secondary_address_profile?.secondary_address || "";
 
       // 2. 바이비트 출금 신청
-      const withdrawRes = await fetch("/api/bybit/withdraw", {
+      const withdrawRes = await fetch(`${API_BASE_URL}/bybit/withdraw`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -426,7 +451,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
 
     addToast(`${sellSym} 매도 주문 발송 중...`, "money");
     try {
-      const res = await fetch("/api/upbit/sell", {
+      const res = await fetch(`${API_BASE_URL}/upbit/sell`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -479,7 +504,7 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
 
     addToast("케이뱅크 출금 처리 중...", "money");
     try {
-      const res = await fetch("/api/upbit/withdraw-krw", {
+      const res = await fetch(`${API_BASE_URL}/upbit/withdraw-krw`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -537,7 +562,14 @@ export default function App({ hasRegisteredAccount = true, registeredName = "김
                 {isVirtual ? "⚡ 가상연결 해제" : "⚙️ 가상 연결(모의테스트)"}
               </button>
             </div>
-            <div style={{ fontSize: 12.5, color: "#8B95A1", fontWeight: 600, letterSpacing: "-0.2px", marginTop: 2 }}>바이비트 → 업비트 → 케이뱅크</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+              <div style={{ fontSize: 12.5, color: "#8B95A1", fontWeight: 600, letterSpacing: "-0.2px" }}>바이비트 → 업비트 → 케이뱅크</div>
+              <span style={{ color: "#D9DEE3", fontSize: 12 }}>|</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#E8F0FF", color: "#1763F6", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                <span>서버 IP:</span>
+                <span style={{ fontFamily: "monospace" }}>{serverIp}</span>
+              </div>
+            </div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
