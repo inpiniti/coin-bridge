@@ -497,7 +497,6 @@ export default function App() {
     const amt = pnum(withdrawAmount);
     if (amt <= 0) return addToast("출금 금액을 입력하세요", "send");
     if (amt > krw) return addToast("잔고가 부족합니다", "send");
-    if (withdrawMode === "manual" && (!manualName || !manualNum)) return addToast("계좌 정보를 입력하세요", "send");
     setWdOpen(true);
   };
 
